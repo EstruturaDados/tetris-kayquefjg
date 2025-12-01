@@ -1,0 +1,107 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
+
+#define TAM_FILA 5
+
+// Struct da peça
+struct Peca {
+    char nome[2];  // I, O, T, L
+    int id;
+};
+
+// Gera uma peça automaticamente
+struct Peca gerarPeca() {
+    struct Peca p;
+    char tipos[4][2] = {"I", "O", "T", "L"};
+
+    strcpy(p.nome, tipos[rand() % 4]);
+    p.id = rand() % 1000;  // ID aleatório de 0 a 999
+
+    return p;
+}
+
+// Mostra o estado da fila circular
+void mostrarFila(struct Peca fila[], int inicio, int fim, int tamanho) {
+    printf("\n===== ESTADO ATUAL DA FILA =====\n");
+
+    for (int i = 0; i < TAM_FILA; i++) {
+        printf("Pos %d -> Nome: %s | ID: %d\n", 
+                i, fila[i].nome, fila[i].id);
+    }
+    printf("--------------------------------\n");
+    printf("Início: %d | Fim: %d | Tamanho: %d\n\n", inicio, fim, tamanho);
+}
+
+int main() {
+
+    struct Peca fila[TAM_FILA];
+    int inicio = 0;
+    int fim = 0;
+    int tamanho = 0;
+    int opcao;
+
+    srand(time(NULL));
+
+    // Inicializando a fila com 5 peças
+    for (int i = 0; i < TAM_FILA; i++) {
+        fila[fim] = gerarPeca();
+        fim = (fim + 1) % TAM_FILA;
+        tamanho++;
+    }
+
+    do {
+        printf("\n===== TETRIS STACK — Nivel Novato =====\n");
+        printf("1 - Jogar peça (dequeue)\n");
+        printf("2 - Inserir nova peça (enqueue)\n");
+        printf("3 - Visualizar fila\n");
+        printf("0 - Sair\n");
+        printf("Escolha uma opcao: ");
+        scanf("%d", &opcao);
+
+        switch (opcao) {
+
+        case 1: // Jogar peça
+            if (tamanho == 0) {
+                printf("A fila está vazia! Nada para jogar.\n");
+            } else {
+                printf("\nPeça jogada: %s (ID %d)\n",
+                       fila[inicio].nome, fila[inicio].id);
+
+                inicio = (inicio + 1) % TAM_FILA;
+                tamanho--;
+            }
+            mostrarFila(fila, inicio, fim, tamanho);
+            break;
+
+        case 2: // Inserir nova peça
+            if (tamanho == TAM_FILA) {
+                printf("A fila está cheia! Não é possível inserir.\n");
+            } else {
+                struct Peca nova = gerarPeca();
+                fila[fim] = nova;
+                fim = (fim + 1) % TAM_FILA;
+                tamanho++;
+
+                printf("\nPeça inserida: %s (ID %d)\n", nova.nome, nova.id);
+            }
+            mostrarFila(fila, inicio, fim, tamanho);
+            break;
+
+        case 3: // Visualizar fila
+            mostrarFila(fila, inicio, fim, tamanho);
+            break;
+
+        case 0:
+            printf("Encerrando...\n");
+            break;
+
+        default:
+            printf("Opcao invalida!\n");
+        }
+
+    } while (opcao != 0);
+
+    return 0;
+}

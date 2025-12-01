@@ -1,0 +1,280 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define TAM_FILA 5
+#define TAM_PILHA 3
+#define TAM_UNDO 10   // histórico de desfazer até 10 ações
+
+// ------------ STRUCTS ------------
+
+// Peça do jogo
+struct Peca {
+    char nome[2];   // "I", "O", "T", "L"
+    int id;
+};
+
+// Estado completo do jogo (para desfazer)
+struct Estado {
+    struct Peca fila[TAM_FILA];
+    struct Peca pilha[TAM_PILHA];
+    int inicio, fim, topo;
+};
+
+
+// ------------ GERAR PEÇA ------------
+
+struct Peca gerarPeca() {
+    struct Peca p;
+    char tipos[4][2] = {"I", "O", "T", "L"};
+    strcpy(p.nome, tipos[rand() % 4]);
+    p.id = rand() % 1000;
+    return p;
+}
+
+
+// ------------ PRINTS ------------
+
+void mostrarFila(struct Peca fila[], int inicio) {
+    printf("\n===== FILA (próximas peças) =====\n");
+    for (int i = 0; i < TAM_FILA; i++) {
+        int pos = (inicio + i) % TAM_FILA;
+        printf("%d: %s (%d)\n", pos, fila[pos].nome, fila[pos].id);
+    }
+}
+
+void mostrarPilha(struct Peca pilha[], int topo) {
+    printf("\n===== PILHA (reservas) =====\n");
+    if (topo == -1) {
+        printf("Pilha vazia.\n");
+        return;
+    }
+    for (int i = topo; i >= 0; i--) {
+        printf("Topo[%d] -> %s (%d)\n", i, pilha[i].nome, pilha[i].id);
+    }
+}
+
+
+// ------------ SISTEMA DE DESFAZER ------------
+
+void salvarEstado(struct Estado undo[], int *undoTopo,
+                  struct Peca fila[], struct Peca pilha[],
+                  int inicio, int fim, int topo) {
+
+    if (*undoTopo >= TAM_UNDO - 1) {
+        // Desloca histórico para a esquerda (descarta o mais antigo)
+        for (int i = 0; i < TAM_UNDO - 1; i++)
+            undo[i] = undo[i + 1];
+        *undoTopo = TAM_UNDO - 2;
+    }
+
+    (*undoTopo)++;
+
+    for (int i = 0; i < TAM_FILA; i++)
+        undo[*undoTopo].fila[i] = fila[i];
+
+    for (int i = 0; i < TAM_PILHA; i++)
+        undo[*undoTopo].pilha[i] = pilha[i];
+
+    undo[*undoTopo].inicio = inicio;
+    undo[*undoTopo].fim = fim;
+    undo[*undoTopo].topo = topo;
+}
+
+void restaurarEstado(struct Estado undo[], int *undoTopo,
+                     struct Peca fila[], struct Peca pilha[],
+                     int *inicio, int *fim, int *topo) {
+
+    if (*undoTopo < 0) {
+        printf("Nada para desfazer!\n");
+        return;
+    }
+
+    struct Estado e = undo[*undoTopo];
+    (*undoTopo)--;
+
+    for (int i = 0; i < TAM_FILA; i++)
+        fila[i] = e.fila[i];
+
+    for (int i = 0; i < TAM_PILHA; i++)
+        pilha[i] = e.pilha[i];
+
+    *inicio = e.inicio;
+    *fim = e.fim;
+    *topo = e.topo;
+
+    printf("\nAção desfeita com sucesso!\n");
+}
+
+
+// ------------ OPERAÇÕES ------------
+
+// Jogar peça
+void jogarPeca(struct Peca fila[], int *inicio, int *fim) {
+    printf("\nPeça jogada: %s (%d)\n",
+           fila[*inicio].nome, fila[*inicio].id);
+
+    *inicio = (*inicio + 1) % TAM_FILA;
+
+    fila[*fim] = gerarPeca();
+    *fim = (*fim + 1) % TAM_FILA;
+}
+
+// Reservar peça
+void reservarPeca(struct Peca fila[], struct Peca pilha[],
+                  int *inicio, int *fim, int *topo) {
+
+    if (*topo == TAM_PILHA - 1) {
+        printf("Pilha cheia! Não é possível reservar.\n");
+        return;
+    }
+
+    pilha[++(*topo)] = fila[*inicio];
+
+    printf("\nPeça reservada: %s (%d)\n",
+           fil lalo[*inicio].nome, fila[*inicio].id);
+
+    *inicio = (*inicio + 1) % TAM_FILA;
+
+    fila[*fim] = gerarPeca();
+    *fim = (*fim + 1) % TAM_FILA;
+}
+
+// Usar reservada
+void usarReservada(struct Peca pilha[], int *topo) {
+    if (*topo == -1) {
+        printf("Nenhuma peça reservada!\n");
+        return;
+    }
+
+    struct Peca p = pilha[(*topo)--];
+    printf("\nPeça usada da reserva: %s (%d)\n", p.nome, p.id);
+}
+
+// Trocar topo da pilha com frente da fila
+void trocarPeca(struct Peca fila[], struct Peca pilha[],
+                int inicio, int topo) {
+
+    if (topo < 0) {
+        printf("Pilha vazia! Não é possível trocar.\n");
+        return;
+    }
+
+    struct Peca temp = fila[inicio];
+    fila[inicio] = pilha[topo];
+    pilha[topo] = temp;
+
+    printf("\nTroca realizada!\n");
+}
+
+// Inverter fila com pilha
+void inverter(struct Peca fila[], struct Peca pilha[],
+              int *inicio, int *fim, int *topo) {
+
+    struct Peca novaFila[TAM_FILA];
+    struct Peca novaPilha[TAM_PILHA];
+
+    // Copiar fila para pilha (máximo TAM_PILHA)
+    int k = 0;
+    for (int i = 0; i < TAM_FILA && k < TAM_PILHA; i++) {
+        novaPilha[k++] = fila[( *inicio + i ) % TAM_FILA];
+    }
+    *topo = k - 1;
+
+    // Fila recebe as peças antigas da pilha + peças novas até completar
+    int pos = *inicio;
+    for (int i = *topo; i >= 0; i--) {
+        fila[pos] = novaPilha[i];
+        pos = (pos + 1) % TAM_FILA;
+    }
+
+    // Completar com peças novas
+    while (pos != *inicio) {
+        fila[pos] = gerarPeca();
+        pos = (pos + 1) % TAM_FILA;
+    }
+
+    printf("\nFila e pilha invertidas!\n");
+}
+
+
+// ------------ MAIN ------------
+
+int main() {
+
+    srand(time(NULL));
+
+    struct Peca fila[TAM_FILA];
+    struct Peca pilha[TAM_PILHA];
+    struct Estado undo[TAM_UNDO];
+    int undoTopo = -1;
+
+    int inicio = 0, fim = 0, topo = -1;
+    int opcao;
+
+    // Inicializa fila
+    for (int i = 0; i < TAM_FILA; i++) {
+        fila[fim] = gerarPeca();
+        fim = (fim + 1) % TAM_FILA;
+    }
+
+    do {
+        printf("\n===== TETRIS STACK — NIVEL MESTRE =====\n");
+        printf("1 - Jogar peça\n");
+        printf("2 - Reservar peça\n");
+        printf("3 - Usar reservada\n");
+        printf("4 - Trocar topo da pilha com frente da fila\n");
+        printf("5 - Desfazer última ação\n");
+        printf("6 - Inverter fila com pilha\n");
+        printf("0 - Sair\n");
+        printf("Escolha: ");
+        scanf("%d", &opcao);
+
+        switch (opcao) {
+
+        case 1:
+            salvarEstado(undo, &undoTopo, fila, pilha, inicio, fim, topo);
+            jogarPeca(fila, &inicio, &fim);
+            break;
+
+        case 2:
+            salvarEstado(undo, &undoTopo, fila, pilha, inicio, fim, topo);
+            reservarPeca(fila, pilha, &inicio, &fim, &topo);
+            break;
+
+        case 3:
+            salvarEstado(undo, &undoTopo, fila, pilha, inicio, fim, topo);
+            usarReservada(pilha, &topo);
+            break;
+
+        case 4:
+            salvarEstado(undo, &undoTopo, fila, pilha, inicio, fim, topo);
+            trocarPeca(fila, pilha, inicio, topo);
+            break;
+
+        case 5:
+            restaurarEstado(undo, &undoTopo, fila, pilha,
+                            &inicio, &fim, &topo);
+            break;
+
+        case 6:
+            salvarEstado(undo, &undoTopo, fila, pilha, inicio, fim, topo);
+            inverter(fila, pilha, &inicio, &fim, &topo);
+            break;
+
+        case 0:
+            printf("Saindo...\n");
+            break;
+
+        default:
+            printf("Opção inválida!\n");
+        }
+
+        mostrarFila(fila, inicio);
+        mostrarPilha(pilha, topo);
+
+    } while (opcao != 0);
+
+    return 0;
+}

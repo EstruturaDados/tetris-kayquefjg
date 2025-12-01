@@ -1,0 +1,149 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define TAM_FILA 5
+#define TAM_PILHA 3
+
+// Struct da peça
+struct Peca {
+    char nome[2];   // I, O, T, L
+    int id;
+};
+
+// ---------- Funções Auxiliares ----------
+
+// Gerar peça automaticamente
+struct Peca gerarPeca() {
+    struct Peca p;
+    char tipos[4][2] = {"I", "O", "T", "L"};
+
+    strcpy(p.nome, tipos[rand() % 4]);
+    p.id = rand() % 1000;
+
+    return p;
+}
+
+// Mostrar fila circular
+void mostrarFila(struct Peca fila[], int inicio) {
+    printf("\n===== FILA (Próximas peças) =====\n");
+    for (int i = 0; i < TAM_FILA; i++) {
+        printf("Pos %d -> Nome: %s | ID: %d\n",
+               i, fila[(inicio + i) % TAM_FILA].nome,
+               fila[(inicio + i) % TAM_FILA].id);
+    }
+}
+
+// Mostrar pilha
+void mostrarPilha(struct Peca pilha[], int topo) {
+    printf("\n===== PILHA (Reservadas) =====\n");
+
+    if (topo == -1) {
+        printf("Pilha vazia.\n");
+        return;
+    }
+
+    for (int i = topo; i >= 0; i--) {
+        printf("Topo[%d] -> %s (ID %d)\n", 
+                i, pilha[i].nome, pilha[i].id);
+    }
+}
+
+// ---------------------------------------
+
+int main() {
+
+    srand(time(NULL));
+
+    struct Peca fila[TAM_FILA];
+    struct Peca pilha[TAM_PILHA];
+
+    int inicio = 0;   // Frente da fila
+    int fim = 0;      // Próxima posição livre da fila
+    int topo = -1;    // Pilha começa vazia
+
+    int opcao;
+
+    // Inicializa a fila com 5 peças
+    for (int i = 0; i < TAM_FILA; i++) {
+        fila[fim] = gerarPeca();
+        fim = (fim + 1) % TAM_FILA;
+    }
+
+    do {
+        printf("\n===== TETRIS STACK — Nivel Aventureiro =====\n");
+        printf("1 - Jogar peça\n");
+        printf("2 - Reservar peça\n");
+        printf("3 - Usar peça reservada\n");
+        printf("0 - Sair\n");
+        printf("Escolha uma opcao: ");
+        scanf("%d", &opcao);
+
+        switch (opcao) {
+
+        case 1: { // Jogar peça
+            struct Peca jogada = fila[inicio];
+            printf("\nPeça jogada: %s (ID %d)\n",
+                    jogada.nome, jogada.id);
+
+            // Remove da frente
+            inicio = (inicio + 1) % TAM_FILA;
+
+            // Enfileira uma nova peça automaticamente
+            fila[fim] = gerarPeca();
+            fim = (fim + 1) % TAM_FILA;
+
+            break;
+        }
+
+        case 2: { // Reservar peça (push)
+            if (topo == TAM_PILHA - 1) {
+                printf("A pilha está cheia! Não é possível reservar.\n");
+            } else {
+                struct Peca reservada = fila[inicio];
+
+                // Remove da fila
+                inicio = (inicio + 1) % TAM_FILA;
+
+                // Empilha
+                pilha[++topo] = reservada;
+
+                printf("\nPeça reservada: %s (ID %d)\n",
+                       reservada.nome, reservada.id);
+
+                // Enfileira nova peça
+                fila[fim] = gerarPeca();
+                fim = (fim + 1) % TAM_FILA;
+            }
+            break;
+        }
+
+        case 3: { // Usar peça reservada (pop)
+            if (topo == -1) {
+                printf("A pilha está vazia! Nenhuma peça reservada.\n");
+            } else {
+                struct Peca usada = pilha[topo--];
+
+                printf("\nPeça usada da reserva: %s (ID %d)\n",
+                       usada.nome, usada.id);
+            }
+            break;
+        }
+
+        case 0:
+            printf("Encerrando...\n");
+            break;
+
+        default:
+            printf("Opcao inválida!\n");
+        }
+
+        // Mostrar estado após cada ação
+        mostrarFila(fila, inicio);
+        mostrarPilha(pilha, topo);
+
+    } while (opcao != 0);
+
+    return 0;
+}
